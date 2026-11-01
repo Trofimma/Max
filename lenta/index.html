@@ -388,11 +388,11 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
     const done = its.filter(i => i.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0));
     const chipsBox = h('div', { class: 'chips' });
     const fillChips = q => {
-      chipsBox.replaceChildren(...suggestions(list.id, q).map(n => h('button', { class: 'chip', onclick: () => { S.draft = ''; addItem(list.id, n); } }, '+ ' + n)));
+      chipsBox.replaceChildren();
       if (S.sample && !q) chipsBox.append(h('button', { class: 'chip ghost', onclick: () => { S.dish = { query: '', busy: false, result: null, error: '' }; render(); setTimeout(() => $('#dishInput')?.focus(), 0); } }, 'Ингредиенты для блюда'));
     };
     const input = h('input', {
-      id: 'addInput', type: 'text', placeholder: 'Добавить: молоко 2 л', autocomplete: 'off', enterkeyhint: 'done',
+      id: 'addInput', type: 'text', placeholder: 'Новый пункт', autocomplete: 'off', enterkeyhint: 'done',
       'aria-label': 'Новый пункт', value: S.draft,
       oninput: e => { S.draft = e.target.value; fillChips(S.draft); }
     });
@@ -408,7 +408,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
         h('button', { class: 'c-more', 'aria-label': 'Настроить список', onclick: () => openSheet(list), html: UI.more })),
       h('hr', { class: 'rule' }),
       todo.length ? h('ul', { class: 'items' }, todo.map(itemRow))
-        : h('div', { class: 'empty-list' }, total2 ? 'Всё отмечено. Можно очистить купленное ниже.' : 'Добавьте первый пункт ниже или нажмите на подсказку.'),
+        : h('div', { class: 'empty-list' }, total2 ? 'Всё отмечено. Можно очистить купленное ниже.' : 'Добавьте первый пункт ниже.'),
       h('form', { class: 'add', onsubmit: submit }, input, h('button', { type: 'submit' }, 'Добавить')),
       chipsBox,
       S.dish ? dishBox(list) : null,
