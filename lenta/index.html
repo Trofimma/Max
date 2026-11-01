@@ -68,7 +68,10 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
 }
 .card.mini { height: 82px; margin-bottom: -26px; cursor: pointer; overflow: hidden; transition: transform .18s ease; }
 .card.mini:active { transform: translateY(-3px); }
-.card.open { min-height: 340px; padding-bottom: 20px; }
+.card { scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 72px); }
+.card.open { padding-bottom: 46px; margin-bottom: -26px; }
+.card.open:last-child { padding-bottom: 20px; margin-bottom: 0; }
+.card.mini:last-child { height: auto; margin-bottom: 0; }
 .c-head { display: flex; align-items: flex-start; gap: 10px; }
 .c-title { flex: 1; min-width: 0; }
 .c-name { font-weight: 700; font-size: 19px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -345,9 +348,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
     if (!S.openId || !S.lists.has(S.openId)) S.openId = lists[lists.length - 1].id;
     const focusedId = ['addInput', 'dishInput'].includes(document.activeElement?.id) ? document.activeElement.id : null;
     const stack = h('div', { class: 'stack' });
-    lists.filter(l => l.id !== S.openId).forEach((l, i) => stack.append(miniCard(l, i)));
-    const open = lists.find(l => l.id === S.openId);
-    stack.append(openCard(open, lists.length));
+    lists.forEach((l, i) => stack.append(l.id === S.openId ? openCard(l, i) : miniCard(l, i)));
     app.replaceChildren(stack);
     const inp = focusedId && document.getElementById(focusedId);
     if (inp) { inp.focus({ preventScroll: true }); inp.setSelectionRange(inp.value.length, inp.value.length); }
@@ -399,7 +400,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
     const submit = e => { e.preventDefault(); const v = input.value.trim(); if (!v) return; S.draft = ''; input.value = ''; fillChips(''); addItem(list.id, v); };
     fillChips(S.draft);
     const total2 = its.length;
-    const el = h('section', { class: 'card open', style: `z-index:${total + 1}`, 'aria-label': `Список ${list.name}` },
+    const el = h('section', { class: 'card open', style: `z-index:${total + 1}`, tabindex: '-1', 'aria-label': `Список ${list.name}` },
       h('div', { class: 'c-head' },
         h('div', { class: 'c-title' },
           h('div', { class: 'c-name' }, list.name),
