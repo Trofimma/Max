@@ -122,10 +122,6 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
 .done-head { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 14px; opacity: .85; }
 .done-head button { font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
 
-.dish { margin-top: 12px; padding: 12px; border-radius: 16px; background: rgba(0,0,0,.14); }
-.card[data-ink="dark"] .dish { background: rgba(0,0,0,.06); }
-.dish p { margin: 0 0 8px; font-size: 14px; }
-.dish .row { display: flex; gap: 8px; }
 
 .hint { text-align: center; font-size: 12.5px; color: var(--muted); margin-top: 18px; }
 
@@ -234,11 +230,11 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
   };
 
   const S = {
-    db: null, sample: null, canWrite: true,
+    db: null, canWrite: true,
     lists: new Map(), items: new Map(),
     gotLists: false, gotItems: false,
     openId: store.get('lenta.open'),
-    draft: '', dish: null, // dish: {open, query, busy, result:[], error}
+    draft: '',
   };
 
   // ---------- helpers ----------
@@ -346,7 +342,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
       return;
     }
     if (!S.openId || !S.lists.has(S.openId)) S.openId = lists[lists.length - 1].id;
-    const focusedId = ['addInput', 'dishInput'].includes(document.activeElement?.id) ? document.activeElement.id : null;
+    const focusedId = ['addInput'].includes(document.activeElement?.id) ? document.activeElement.id : null;
     const stack = h('div', { class: 'stack' });
     lists.forEach((l, i) => stack.append(l.id === S.openId ? openCard(l, i) : miniCard(l, i)));
     app.replaceChildren(stack);
@@ -373,7 +369,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
     return styleCard(el, list);
   }
   function openList(id) {
-    S.openId = id; S.draft = ''; S.dish = null; store.set('lenta.open', id); render();
+    S.openId = id; S.draft = ''; store.set('lenta.open', id); render();
     requestAnimationFrame(() => document.querySelector('.card.open')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
   }
   function itemRow(it) {
@@ -387,18 +383,12 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
     const its = itemsOf(list.id).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
     const todo = its.filter(i => !i.done);
     const done = its.filter(i => i.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0));
-    const chipsBox = h('div', { class: 'chips' });
-    const fillChips = q => {
-      chipsBox.replaceChildren();
-      if (S.sample && !q) chipsBox.append(h('button', { class: 'chip ghost', onclick: () => { S.dish = { query: '', busy: false, result: null, error: '' }; render(); setTimeout(() => $('#dishInput')?.focus(), 0); } }, 'Ингредиенты для блюда'));
-    };
     const input = h('input', {
       id: 'addInput', type: 'text', placeholder: 'Новый пункт', autocomplete: 'off', enterkeyhint: 'done',
       'aria-label': 'Новый пункт', value: S.draft,
-      oninput: e => { S.draft = e.target.value; fillChips(S.draft); }
+      oninput: e => { S.draft = e.target.value; }
     });
-    const submit = e => { e.preventDefault(); const v = input.value.trim(); if (!v) return; S.draft = ''; input.value = ''; fillChips(''); addItem(list.id, v); };
-    fillChips(S.draft);
+    const submit = e => { e.preventDefault(); const v = input.value.trim(); if (!v) return; S.draft = ''; input.value = ''; addItem(list.id, v); };
     const total2 = its.length;
     const el = h('section', { class: 'card open', style: `z-index:${total + 1}`, tabindex: '-1', 'aria-label': `Список ${list.name}` },
       h('div', { class: 'c-head' },
@@ -411,51 +401,12 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
       todo.length ? h('ul', { class: 'items' }, todo.map(itemRow))
         : h('div', { class: 'empty-list' }, total2 ? 'Всё отмечено. Можно очистить купленное ниже.' : 'Добавьте первый пункт ниже.'),
       h('form', { class: 'add', onsubmit: submit }, input, h('button', { type: 'submit' }, 'Добавить')),
-      chipsBox,
-      S.dish ? dishBox(list) : null,
       done.length ? h('div', { class: 'done-head' },
         h('span', {}, `Отмечено: ${done.length}`),
         h('button', { onclick: () => clearDone(list.id) }, 'Очистить')) : null,
       done.length ? h('ul', { class: 'items' }, done.map(itemRow)) : null);
     return styleCard(el, list);
   }
-  function dishBox(list) {
-    const d = S.dish;
-    const inp = h('input', { id: 'dishInput', type: 'text', placeholder: 'Например, борщ на 4 порции', value: d.query, 'aria-label': 'Блюдо', oninput: e => { d.query = e.target.value; } });
-    const ask = async e => {
-      e.preventDefault();
-      if (!d.query.trim() || d.busy) return;
-      d.busy = true; d.error = ''; d.result = null; render();
-      try {
-        const res = await S.sample.json(
-          `Составь список покупок для блюда: «${d.query.trim()}». Верни JSON-массив объектов {"name": string, "qty": string} на русском, ` +
-          `где name — продукт с заглавной буквы, qty — количество с единицей (например "1 кг", "2 шт", "200 г"). ` +
-          `Не включай соль, перец и воду. Не больше 14 позиций. Только JSON.`,
-          { modelTier: 'quick' });
-        d.result = Array.isArray(res) ? res.filter(x => x && x.name).slice(0, 16) : [];
-        if (!d.result.length) d.error = 'Не получилось разобрать ответ. Попробуйте назвать блюдо иначе.';
-      } catch (err) {
-        d.error = err?.code === 'not_granted' ? 'Подсказки по блюдам не разрешены для этой страницы.'
-          : err?.code === 'rate_limited' ? 'Слишком много запросов. Подождите минуту.'
-          : 'Не удалось получить ингредиенты. Попробуйте ещё раз.';
-      }
-      d.busy = false; render();
-    };
-    const box = h('div', { class: 'dish' },
-      h('p', {}, 'Что готовим? Claude предложит ингредиенты, а вы выберете нужные.'),
-      h('form', { class: 'add', style: 'margin-top:0', onsubmit: ask }, inp, h('button', { type: 'submit' }, d.busy ? '…' : 'Найти')));
-    if (d.error) box.append(h('p', { style: 'margin-top:10px' }, d.error));
-    if (d.result?.length) {
-      const chips = h('div', { class: 'chips' }, d.result.map(r => h('button', {
-        class: 'chip', onclick: () => { addItem(list.id, `${r.name} ${r.qty || ''}`.trim()); d.result = d.result.filter(x => x !== r); render(); }
-      }, `+ ${r.name}${r.qty ? ' · ' + r.qty : ''}`)));
-      chips.append(h('button', { class: 'chip ghost', onclick: async () => { const all = d.result; S.dish = null; render(); for (const r of all) await addItem(list.id, `${r.name} ${r.qty || ''}`.trim()); } }, 'Добавить всё'));
-      box.append(chips);
-    }
-    box.append(h('div', { class: 'chips' }, h('button', { class: 'chip ghost', onclick: () => { S.dish = null; render(); } }, 'Закрыть')));
-    return box;
-  }
-
   // ---------- sheet ----------
   function openSheet(list) {
     const isNew = !list;
@@ -502,8 +453,7 @@ h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
   // ---------- boot ----------
   (async () => {
     const use = n => (window.claude?.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
-    const [db, user, sample] = await Promise.all([use('db'), use('user'), use('sample')]);
-    S.sample = sample;
+    const [db, user] = await Promise.all([use('db'), use('user')]);
     if (!db) {
       $('#app').replaceChildren(h('div', { class: 'blank' },
         h('h2', {}, 'Нужен вход в Claude'),
