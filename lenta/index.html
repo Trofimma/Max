@@ -1,0 +1,525 @@
+<title>Лента списков</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Лента">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one column, a wallet-style stack of colored list cards; the open card sits at the bottom of the stack fully expanded. */
+:root {
+  --bg: #F2F1F6;
+  --surface: #FFFFFF;
+  --fg: #17161C;
+  --muted: #6E6C7A;
+  --line: #DEDCE6;
+  --accent: #2F6FEB;
+  --danger: #D93A3F;
+  --shadow: 0 -6px 18px rgba(23, 22, 40, .10);
+  --font: "Onest", -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E0E12; --surface: #1C1C22; --fg: #F2F1F6; --muted: #9C9AA8;
+    --line: #2E2D36; --accent: #6C9BFF; --danger: #FF6B6F;
+    --shadow: 0 -6px 18px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E0E12; --surface: #1C1C22; --fg: #F2F1F6; --muted: #9C9AA8;
+  --line: #2E2D36; --accent: #6C9BFF; --danger: #FF6B6F;
+  --shadow: 0 -6px 18px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 40px;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+button:focus-visible, input:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 520px; margin: 0 auto; }
+
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; align-items: center; justify-content: space-between; padding-block: 14px 12px;
+}
+h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+.round {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--surface); display: grid; place-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.round svg { width: 20px; height: 20px; }
+.note { font-size: 13px; color: var(--muted); padding-block: 0 10px; }
+.note[data-kind="warn"] { color: var(--danger); }
+
+/* stack */
+.stack { display: flex; flex-direction: column; }
+.card {
+  --c-bg: #3E8EF0; --c-fg: #fff;
+  position: relative; border-radius: 22px; color: var(--c-fg);
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,0) 60px), var(--c-bg);
+  box-shadow: var(--shadow); padding: 14px 18px 16px;
+}
+.card.mini { height: 82px; margin-bottom: -26px; cursor: pointer; overflow: hidden; transition: transform .18s ease; }
+.card.mini:active { transform: translateY(-3px); }
+.card.open { min-height: 340px; padding-bottom: 20px; }
+.c-head { display: flex; align-items: flex-start; gap: 10px; }
+.c-title { flex: 1; min-width: 0; }
+.c-name { font-weight: 700; font-size: 19px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card.open .c-name { font-size: 23px; white-space: normal; text-wrap: balance; }
+.c-sub { font-size: 12.5px; opacity: .82; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.c-icon svg { width: 26px; height: 26px; }
+.c-icon { opacity: .95; flex: none; }
+.c-more { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.18); flex: none; }
+.c-more svg { width: 18px; height: 18px; }
+.rule { border: 0; border-top: 1.5px dashed currentColor; opacity: .35; margin: 14px 0 6px; }
+
+.items { list-style: none; margin: 0; padding: 0; }
+.item { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.check {
+  width: 24px; height: 24px; border-radius: 50%; border: 2px solid currentColor; flex: none; opacity: .9;
+  display: grid; place-items: center;
+}
+.check svg { width: 14px; height: 14px; opacity: 0; }
+.item.done .check { background: currentColor; }
+.item.done .check svg { opacity: 1; color: var(--c-bg); }
+.i-body { flex: 1; min-width: 0; text-align: left; padding-block: 8px; display: flex; gap: 8px; align-items: center; }
+.i-name { font-size: 17px; font-weight: 500; overflow-wrap: anywhere; }
+.i-qty { font-size: 14px; opacity: .78; white-space: nowrap; }
+.item.done .i-name { text-decoration: line-through; opacity: .62; }
+.item.done .i-qty { opacity: .5; }
+.i-del { width: 32px; height: 32px; display: grid; place-items: center; opacity: .55; flex: none; }
+.i-del svg { width: 16px; height: 16px; }
+.empty-list { font-size: 15px; opacity: .8; padding-block: 10px; }
+
+.add { display: flex; gap: 8px; margin-top: 12px; }
+.add input {
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; border: 0; border-radius: 14px; padding: 12px 14px;
+  background: rgba(255,255,255,.92); color: #17161C;
+}
+.add input::placeholder { color: #8A8896; }
+.add button { border-radius: 14px; padding: 0 16px; background: rgba(0,0,0,.22); font-weight: 600; color: inherit; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.chip {
+  font-size: 14px; padding: 7px 12px; border-radius: 999px; background: rgba(255,255,255,.22); color: inherit;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chip.ghost { background: transparent; border: 1.5px solid rgba(255,255,255,.55); }
+.card[data-ink="dark"] .chip { background: rgba(0,0,0,.08); }
+.card[data-ink="dark"] .chip.ghost { border-color: rgba(0,0,0,.35); }
+.card[data-ink="dark"] .c-more { background: rgba(0,0,0,.08); }
+.card[data-ink="dark"] .add button { background: rgba(0,0,0,.12); }
+
+.done-head { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 14px; opacity: .85; }
+.done-head button { font-size: 14px; text-decoration: underline; text-underline-offset: 3px; }
+
+.dish { margin-top: 12px; padding: 12px; border-radius: 16px; background: rgba(0,0,0,.14); }
+.card[data-ink="dark"] .dish { background: rgba(0,0,0,.06); }
+.dish p { margin: 0 0 8px; font-size: 14px; }
+.dish .row { display: flex; gap: 8px; }
+
+.hint { text-align: center; font-size: 12.5px; color: var(--muted); margin-top: 18px; }
+
+/* empty and loading */
+.blank { background: var(--surface); border-radius: 22px; padding: 28px 22px; text-align: center; }
+.blank h2 { margin: 0 0 6px; font-size: 20px; }
+.blank p { margin: 0 0 16px; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.primary { background: var(--accent); color: #fff; border-radius: 14px; padding: 12px 18px; font-weight: 600; }
+
+/* sheet */
+.scrim { position: fixed; inset: 0; background: rgba(10,10,20,.42); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; max-width: 520px; background: var(--surface); border-radius: 24px 24px 0 0;
+  padding: 18px max(18px, env(safe-area-inset-left, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-right, 0px));
+  max-height: 88vh; overflow-y: auto;
+}
+.sheet h2 { margin: 0 0 14px; font-size: 20px; }
+.sheet label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; letter-spacing: .02em; }
+.sheet input[type="text"] {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 17px; padding: 12px 14px; border-radius: 14px;
+  border: 1.5px solid var(--line); background: var(--bg); color: var(--fg);
+}
+.swatches, .icons { display: flex; flex-wrap: wrap; gap: 10px; }
+.sw { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; }
+.sw[aria-pressed="true"] { border-color: var(--fg); }
+.ic { width: 44px; height: 44px; border-radius: 12px; background: var(--bg); display: grid; place-items: center; border: 2px solid transparent; }
+.ic svg { width: 22px; height: 22px; }
+.ic[aria-pressed="true"] { border-color: var(--accent); }
+.sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.sheet-actions .primary { flex: 1; }
+.secondary { border-radius: 14px; padding: 12px 16px; background: var(--bg); font-weight: 600; }
+.danger { color: var(--danger); }
+.confirm { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--bg); font-size: 15px; }
+.confirm .row { display: flex; gap: 8px; margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) { .card.mini { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Лента</h1>
+    <button class="round" id="newList" aria-label="Новый список"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  </header>
+  <div class="note" id="note" hidden></div>
+  <main id="app">
+    <div class="blank">
+      <h2>Загружаю списки</h2>
+      <p>Общие списки появятся здесь через секунду. Изменения видны всем, у кого есть доступ к странице.</p>
+    </div>
+  </main>
+  <div class="hint" id="hint" hidden>Нажмите на карточку, чтобы открыть список. Кнопка «⋯» меняет цвет, значок и порядок.</div>
+</div>
+<div id="sheetRoot"></div>
+
+<script>
+(() => {
+  const ICONS = {
+    cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.8l2.3 11.6a1.5 1.5 0 0 0 1.5 1.2h9.1a1.5 1.5 0 0 0 1.5-1.1L21.5 7.5H6.1"/>',
+    basket: '<path d="M3 10h18l-2.2 9.2a1.5 1.5 0 0 1-1.5 1.1H6.7a1.5 1.5 0 0 1-1.5-1.1z"/><path d="M8 10l3.2-6M16 10l-3.2-6M9 14v3M15 14v3M12 14v3"/>',
+    home: '<path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/>',
+    gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8.5h14V12M12 8v12.5"/><path d="M12 8C10.5 4.5 6.5 4 6.5 6.3 6.5 8 9.5 8 12 8zm0 0c1.5-3.5 5.5-4 5.5-1.7C17.5 8 14.5 8 12 8z"/>',
+    car: '<path d="M4.5 14.5 6 9.2A2 2 0 0 1 7.9 7.8h8.2a2 2 0 0 1 1.9 1.4l1.5 5.3"/><rect x="3" y="14.5" width="18" height="4.5" rx="1.5"/><path d="M6 19v1.5M18 19v1.5"/><circle cx="7" cy="16.8" r=".6"/><circle cx="17" cy="16.8" r=".6"/>',
+    leaf: '<path d="M5 19.5C5 10.5 11 5 20 4.5c0 9-5.5 15-15 15z"/><path d="M5 19.5l8.5-8.5"/>',
+    todo: '<path d="M10 6h10M10 12h10M10 18h10"/><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17"/>',
+    star: '<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/>',
+    pill: '<rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="m9.7 8.8 4.6 6.4"/>',
+    paw: '<circle cx="6" cy="10" r="1.8"/><circle cx="10" cy="6.3" r="1.8"/><circle cx="14" cy="6.3" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M8 17c0-3 1.8-5 4-5s4 2 4 5c0 1.7-1.3 2.5-2.5 2.2-1-.3-2-.3-3 0C9.3 19.5 8 18.7 8 17z"/>'
+  };
+  const svg = (name, sw = 1.8) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ICONS.cart}</svg>`;
+  const UI = {
+    more: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+    tick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+  };
+  const COLORS = [
+    { id: 'sky', bg: '#3E8EF0', ink: 'light' },
+    { id: 'red', bg: '#E5484D', ink: 'light' },
+    { id: 'green', bg: '#3FA45B', ink: 'light' },
+    { id: 'pink', bg: '#F07C97', ink: 'light' },
+    { id: 'berry', bg: '#C52B66', ink: 'light' },
+    { id: 'lime', bg: '#CDE53F', ink: 'dark' },
+    { id: 'navy', bg: '#22306E', ink: 'light' },
+    { id: 'apricot', bg: '#F5B864', ink: 'dark' },
+    { id: 'violet', bg: '#7A5AE0', ink: 'light' },
+    { id: 'teal', bg: '#119C8B', ink: 'light' }
+  ];
+  const colorOf = id => COLORS.find(c => c.id === id) || COLORS[0];
+  const STAPLES = ['Хлеб', 'Молоко', 'Яйца', 'Сыр', 'Масло', 'Кофе', 'Сахар', 'Бананы', 'Яблоки', 'Курица', 'Помидоры', 'Огурцы', 'Картофель', 'Лук', 'Рис', 'Макароны', 'Йогурт', 'Вода', 'Чай', 'Туалетная бумага'];
+
+  const $ = s => document.querySelector(s);
+  function h(tag, attrs = {}, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'html') el.innerHTML = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+    return el;
+  }
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  const S = {
+    db: null, sample: null, canWrite: true,
+    lists: new Map(), items: new Map(),
+    gotLists: false, gotItems: false,
+    openId: store.get('lenta.open'),
+    draft: '', dish: null, // dish: {open, query, busy, result:[], error}
+  };
+
+  // ---------- helpers ----------
+  const UNITS = 'шт|кг|г|гр|л|мл|уп|упак|пач|бут|бан|банк[аи]?|пак|десяток';
+  function parseEntry(raw) {
+    const t = raw.trim().replace(/\s+/g, ' ');
+    let m = t.match(new RegExp(`^(.+?)\\s*[,·-]?\\s+(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})?\\.?$`, 'i'));
+    if (m) return { name: cap(m[1]), qty: `${m[2]}${m[3] ? ' ' + m[3].toLowerCase() : ' шт'}` };
+    m = t.match(new RegExp(`^(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})?\\.?\\s+(.+)$`, 'i'));
+    if (m) return { name: cap(m[3]), qty: `${m[1]}${m[2] ? ' ' + m[2].toLowerCase() : ' шт'}` };
+    return { name: cap(t), qty: '' };
+  }
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  function plural(n, one, few, many) {
+    const a = n % 10, b = n % 100;
+    if (a === 1 && b !== 11) return one;
+    if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+    return many;
+  }
+  const sortedLists = () => [...S.lists.entries()]
+    .map(([id, d]) => ({ id, ...d }))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
+  const itemsOf = id => [...S.items.entries()].map(([iid, d]) => ({ id: iid, ...d })).filter(i => i.listId === id);
+  function subtitle(list) {
+    const its = itemsOf(list.id);
+    if (!its.length) return 'Пока пусто';
+    const done = its.filter(i => i.done).length;
+    return `${done} из ${its.length}`;
+  }
+  function note(text, kind) {
+    const n = $('#note');
+    n.hidden = !text; n.textContent = text || ''; n.dataset.kind = kind || '';
+  }
+  function history() { try { return JSON.parse(store.get('lenta.history') || '{}'); } catch { return {}; } }
+  function remember(name) {
+    const hst = history(); const k = name.toLowerCase();
+    hst[k] = { name, n: (hst[k]?.n || 0) + 1 };
+    store.set('lenta.history', JSON.stringify(hst));
+  }
+  function suggestions(listId, q) {
+    const active = new Set(itemsOf(listId).filter(i => !i.done).map(i => i.name.toLowerCase()));
+    const score = new Map();
+    const bump = (name, w) => { const k = name.toLowerCase(); if (active.has(k)) return; const cur = score.get(k); score.set(k, { name: cur?.name || name, w: (cur?.w || 0) + w }); };
+    Object.values(history()).forEach(e => bump(e.name, e.n * 3));
+    for (const i of S.items.values()) if (i.done) bump(i.name, 2);
+    STAPLES.forEach((n, idx) => bump(n, (STAPLES.length - idx) / STAPLES.length));
+    let arr = [...score.values()];
+    const qq = q.trim().toLowerCase();
+    if (qq) arr = arr.filter(e => e.name.toLowerCase().includes(qq) && e.name.toLowerCase() !== qq);
+    return arr.sort((a, b) => b.w - a.w).slice(0, 8).map(e => e.name);
+  }
+
+  // ---------- writes ----------
+  async function guard(fn) {
+    if (!S.db) { note('Списки доступны, только когда страница открыта в Claude с вашим аккаунтом.', 'warn'); return; }
+    if (!S.canWrite) { note('У вас доступ только на просмотр. Попросите владельца пригласить вас как редактора.', 'warn'); return; }
+    try { await fn(); }
+    catch (e) {
+      if (e?.code === 'invalid_argument') { S.canWrite = false; note('Не удалось сохранить: у вас доступ только на просмотр.', 'warn'); }
+      else if (e?.code === 'quota_exceeded') note('Хранилище заполнено. Удалите старые списки или купленные пункты.', 'warn');
+      else note('Не удалось сохранить. Проверьте интернет и попробуйте ещё раз.', 'warn');
+    }
+  }
+  const addItem = (listId, raw) => guard(async () => {
+    const { name, qty } = parseEntry(raw);
+    if (!name) return;
+    remember(name);
+    await S.db.collection('items').add({ listId, name, qty, done: false, createdAt: Date.now() });
+  });
+  const toggleItem = it => guard(() => S.db.doc('items/' + it.id).update({ done: !it.done, doneAt: Date.now() }));
+  const deleteItem = it => guard(() => S.db.doc('items/' + it.id).delete());
+  const clearDone = listId => guard(async () => { for (const it of itemsOf(listId).filter(i => i.done)) await S.db.doc('items/' + it.id).delete(); });
+  const saveList = (id, data) => guard(async () => {
+    if (id) await S.db.doc('lists/' + id).update(data);
+    else {
+      const max = Math.max(0, ...sortedLists().map(l => l.order ?? 0));
+      const ref = await S.db.collection('lists').add({ ...data, order: max + 1, createdAt: Date.now() });
+      S.openId = ref.id; store.set('lenta.open', ref.id);
+    }
+  });
+  const deleteList = id => guard(async () => {
+    for (const it of itemsOf(id)) await S.db.doc('items/' + it.id).delete();
+    await S.db.doc('lists/' + id).delete();
+  });
+  const moveList = (id, dir) => guard(async () => {
+    const arr = sortedLists(); const i = arr.findIndex(l => l.id === id); const j = i + dir;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    for (let k = 0; k < arr.length; k++) if ((arr[k].order ?? 0) !== k + 1) await S.db.doc('lists/' + arr[k].id).update({ order: k + 1 });
+  });
+
+  // ---------- render ----------
+  function render() {
+    const app = $('#app');
+    const ready = S.gotLists && S.gotItems;
+    if (!S.db && !ready) return;
+    if (!ready) return;
+    const lists = sortedLists();
+    $('#hint').hidden = lists.length < 2;
+    if (!lists.length) {
+      app.replaceChildren(h('div', { class: 'blank' },
+        h('h2', {}, 'Пока ни одного списка'),
+        h('p', {}, 'Создайте первый: например, «Продукты» или «На выходные». Он сразу появится у всех, кому вы открыли доступ.'),
+        h('button', { class: 'primary', onclick: () => openSheet() }, 'Создать список')));
+      return;
+    }
+    if (!S.openId || !S.lists.has(S.openId)) S.openId = lists[lists.length - 1].id;
+    const focusedId = ['addInput', 'dishInput'].includes(document.activeElement?.id) ? document.activeElement.id : null;
+    const stack = h('div', { class: 'stack' });
+    lists.filter(l => l.id !== S.openId).forEach((l, i) => stack.append(miniCard(l, i)));
+    const open = lists.find(l => l.id === S.openId);
+    stack.append(openCard(open, lists.length));
+    app.replaceChildren(stack);
+    const inp = focusedId && document.getElementById(focusedId);
+    if (inp) { inp.focus({ preventScroll: true }); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  }
+  function styleCard(el, list) {
+    const c = colorOf(list.color);
+    el.style.setProperty('--c-bg', c.bg);
+    el.style.setProperty('--c-fg', c.ink === 'dark' ? '#1B1B12' : '#FFFFFF');
+    el.dataset.ink = c.ink;
+    return el;
+  }
+  function miniCard(list, i) {
+    const el = h('div', {
+      class: 'card mini', role: 'button', tabindex: '0', style: `z-index:${i + 1}`,
+      'aria-label': `Открыть список ${list.name}`,
+      onclick: () => openList(list.id),
+      onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openList(list.id); } }
+    },
+      h('div', { class: 'c-head' },
+        h('div', { class: 'c-title' }, h('div', { class: 'c-name' }, list.name), h('div', { class: 'c-sub' }, subtitle(list))),
+        h('div', { class: 'c-icon', html: svg(list.icon) })));
+    return styleCard(el, list);
+  }
+  function openList(id) {
+    S.openId = id; S.draft = ''; S.dish = null; store.set('lenta.open', id); render();
+    requestAnimationFrame(() => document.querySelector('.card.open')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
+  }
+  function itemRow(it) {
+    return h('li', { class: 'item' + (it.done ? ' done' : '') },
+      h('button', { class: 'check', 'aria-label': it.done ? `Вернуть «${it.name}»` : `Отметить «${it.name}»`, onclick: () => toggleItem(it), html: UI.tick }),
+      h('button', { class: 'i-body', onclick: () => toggleItem(it) },
+        h('span', { class: 'i-name' }, it.name), it.qty ? h('span', { class: 'i-qty' }, '· ' + it.qty) : null),
+      h('button', { class: 'i-del', 'aria-label': `Удалить «${it.name}»`, onclick: () => deleteItem(it), html: UI.x }));
+  }
+  function openCard(list, total) {
+    const its = itemsOf(list.id).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    const todo = its.filter(i => !i.done);
+    const done = its.filter(i => i.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0));
+    const chipsBox = h('div', { class: 'chips' });
+    const fillChips = q => {
+      chipsBox.replaceChildren(...suggestions(list.id, q).map(n => h('button', { class: 'chip', onclick: () => { S.draft = ''; addItem(list.id, n); } }, '+ ' + n)));
+      if (S.sample && !q) chipsBox.append(h('button', { class: 'chip ghost', onclick: () => { S.dish = { query: '', busy: false, result: null, error: '' }; render(); setTimeout(() => $('#dishInput')?.focus(), 0); } }, 'Ингредиенты для блюда'));
+    };
+    const input = h('input', {
+      id: 'addInput', type: 'text', placeholder: 'Добавить: молоко 2 л', autocomplete: 'off', enterkeyhint: 'done',
+      'aria-label': 'Новый пункт', value: S.draft,
+      oninput: e => { S.draft = e.target.value; fillChips(S.draft); }
+    });
+    const submit = e => { e.preventDefault(); const v = input.value.trim(); if (!v) return; S.draft = ''; input.value = ''; fillChips(''); addItem(list.id, v); };
+    fillChips(S.draft);
+    const total2 = its.length;
+    const el = h('section', { class: 'card open', style: `z-index:${total + 1}`, 'aria-label': `Список ${list.name}` },
+      h('div', { class: 'c-head' },
+        h('div', { class: 'c-title' },
+          h('div', { class: 'c-name' }, list.name),
+          h('div', { class: 'c-sub' }, total2 ? `${done.length} из ${total2} · ${todo.length ? 'осталось ' + todo.length : 'всё куплено'}` : 'Пока пусто')),
+        h('div', { class: 'c-icon', html: svg(list.icon) }),
+        h('button', { class: 'c-more', 'aria-label': 'Настроить список', onclick: () => openSheet(list), html: UI.more })),
+      h('hr', { class: 'rule' }),
+      todo.length ? h('ul', { class: 'items' }, todo.map(itemRow))
+        : h('div', { class: 'empty-list' }, total2 ? 'Всё отмечено. Можно очистить купленное ниже.' : 'Добавьте первый пункт ниже или нажмите на подсказку.'),
+      h('form', { class: 'add', onsubmit: submit }, input, h('button', { type: 'submit' }, 'Добавить')),
+      chipsBox,
+      S.dish ? dishBox(list) : null,
+      done.length ? h('div', { class: 'done-head' },
+        h('span', {}, `Отмечено: ${done.length}`),
+        h('button', { onclick: () => clearDone(list.id) }, 'Очистить')) : null,
+      done.length ? h('ul', { class: 'items' }, done.map(itemRow)) : null);
+    return styleCard(el, list);
+  }
+  function dishBox(list) {
+    const d = S.dish;
+    const inp = h('input', { id: 'dishInput', type: 'text', placeholder: 'Например, борщ на 4 порции', value: d.query, 'aria-label': 'Блюдо', oninput: e => { d.query = e.target.value; } });
+    const ask = async e => {
+      e.preventDefault();
+      if (!d.query.trim() || d.busy) return;
+      d.busy = true; d.error = ''; d.result = null; render();
+      try {
+        const res = await S.sample.json(
+          `Составь список покупок для блюда: «${d.query.trim()}». Верни JSON-массив объектов {"name": string, "qty": string} на русском, ` +
+          `где name — продукт с заглавной буквы, qty — количество с единицей (например "1 кг", "2 шт", "200 г"). ` +
+          `Не включай соль, перец и воду. Не больше 14 позиций. Только JSON.`,
+          { modelTier: 'quick' });
+        d.result = Array.isArray(res) ? res.filter(x => x && x.name).slice(0, 16) : [];
+        if (!d.result.length) d.error = 'Не получилось разобрать ответ. Попробуйте назвать блюдо иначе.';
+      } catch (err) {
+        d.error = err?.code === 'not_granted' ? 'Подсказки по блюдам не разрешены для этой страницы.'
+          : err?.code === 'rate_limited' ? 'Слишком много запросов. Подождите минуту.'
+          : 'Не удалось получить ингредиенты. Попробуйте ещё раз.';
+      }
+      d.busy = false; render();
+    };
+    const box = h('div', { class: 'dish' },
+      h('p', {}, 'Что готовим? Claude предложит ингредиенты, а вы выберете нужные.'),
+      h('form', { class: 'add', style: 'margin-top:0', onsubmit: ask }, inp, h('button', { type: 'submit' }, d.busy ? '…' : 'Найти')));
+    if (d.error) box.append(h('p', { style: 'margin-top:10px' }, d.error));
+    if (d.result?.length) {
+      const chips = h('div', { class: 'chips' }, d.result.map(r => h('button', {
+        class: 'chip', onclick: () => { addItem(list.id, `${r.name} ${r.qty || ''}`.trim()); d.result = d.result.filter(x => x !== r); render(); }
+      }, `+ ${r.name}${r.qty ? ' · ' + r.qty : ''}`)));
+      chips.append(h('button', { class: 'chip ghost', onclick: async () => { const all = d.result; S.dish = null; render(); for (const r of all) await addItem(list.id, `${r.name} ${r.qty || ''}`.trim()); } }, 'Добавить всё'));
+      box.append(chips);
+    }
+    box.append(h('div', { class: 'chips' }, h('button', { class: 'chip ghost', onclick: () => { S.dish = null; render(); } }, 'Закрыть')));
+    return box;
+  }
+
+  // ---------- sheet ----------
+  function openSheet(list) {
+    const isNew = !list;
+    const st = { name: list?.name || '', color: list?.color || COLORS[(S.lists.size) % COLORS.length].id, icon: list?.icon || 'cart', confirm: false };
+    const root = $('#sheetRoot');
+    const close = () => { root.replaceChildren(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    const draw = () => {
+      const name = h('input', { id: 'listName', type: 'text', value: st.name, placeholder: 'Например, Продукты', maxlength: '40', oninput: e => { st.name = e.target.value; } });
+      const save = async e => {
+        e.preventDefault();
+        const n = st.name.trim(); if (!n) { name.focus(); return; }
+        close(); await saveList(list?.id, { name: n, color: st.color, icon: st.icon });
+      };
+      const idx = list ? sortedLists().findIndex(l => l.id === list.id) : -1;
+      const sheet = h('form', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': isNew ? 'Новый список' : 'Настройки списка', onsubmit: save, onclick: e => e.stopPropagation() },
+        h('h2', {}, isNew ? 'Новый список' : 'Настройки списка'),
+        h('label', { for: 'listName' }, 'НАЗВАНИЕ'), name,
+        h('label', {}, 'ЦВЕТ'),
+        h('div', { class: 'swatches' }, COLORS.map(c => h('button', { type: 'button', class: 'sw', style: `background:${c.bg}`, 'aria-label': 'Цвет ' + c.id, 'aria-pressed': String(st.color === c.id), onclick: () => { st.color = c.id; draw(); } }))),
+        h('label', {}, 'ЗНАЧОК'),
+        h('div', { class: 'icons' }, Object.keys(ICONS).map(k => h('button', { type: 'button', class: 'ic', 'aria-label': 'Значок ' + k, 'aria-pressed': String(st.icon === k), onclick: () => { st.icon = k; draw(); }, html: svg(k) }))),
+        !isNew ? h('label', {}, 'ПОРЯДОК В ЛЕНТЕ') : null,
+        !isNew ? h('div', { class: 'sheet-actions', style: 'margin-top:0' },
+          h('button', { type: 'button', class: 'secondary', disabled: idx <= 0, onclick: () => { close(); moveList(list.id, -1); } }, 'Выше'),
+          h('button', { type: 'button', class: 'secondary', disabled: idx >= S.lists.size - 1, onclick: () => { close(); moveList(list.id, 1); } }, 'Ниже')) : null,
+        h('div', { class: 'sheet-actions' },
+          h('button', { type: 'submit', class: 'primary' }, isNew ? 'Создать' : 'Сохранить'),
+          h('button', { type: 'button', class: 'secondary', onclick: close }, 'Отмена'),
+          !isNew ? h('button', { type: 'button', class: 'secondary danger', onclick: () => { st.confirm = true; draw(); } }, 'Удалить') : null),
+        st.confirm ? h('div', { class: 'confirm' },
+          `Удалить «${list.name}» вместе со всеми пунктами? Список пропадёт у всех.`,
+          h('div', { class: 'row' },
+            h('button', { type: 'button', class: 'secondary danger', onclick: () => { close(); deleteList(list.id); } }, 'Да, удалить'),
+            h('button', { type: 'button', class: 'secondary', onclick: () => { st.confirm = false; draw(); } }, 'Оставить'))) : null);
+      root.replaceChildren(h('div', { class: 'scrim', onclick: close }, sheet));
+      if (isNew && !st.name) setTimeout(() => name.focus(), 50);
+    };
+    draw();
+  }
+  $('#newList').addEventListener('click', () => openSheet());
+
+  // ---------- boot ----------
+  (async () => {
+    const use = n => (window.claude?.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
+    const [db, user, sample] = await Promise.all([use('db'), use('user'), use('sample')]);
+    S.sample = sample;
+    if (!db) {
+      $('#app').replaceChildren(h('div', { class: 'blank' },
+        h('h2', {}, 'Нужен вход в Claude'),
+        h('p', {}, 'Списки хранятся в общем хранилище страницы. Откройте её в приложении Claude или на claude.ai, войдя в аккаунт, которому открыт доступ.')));
+      return;
+    }
+    S.db = db;
+    try { const c = await user?.can('data.write'); if (c === false) { S.canWrite = false; note('У вас доступ только на просмотр.', ''); } } catch {}
+    const timer = setTimeout(() => { if (!(S.gotLists && S.gotItems)) note('Не получается связаться с хранилищем. Проверьте интернет: списки появятся сами, когда связь вернётся.', 'warn'); }, 10000);
+    const settle = snap => { if (!snap.metadata.fromCache && S.gotLists && S.gotItems) { clearTimeout(timer); if ($('#note').dataset.kind === 'warn') note(''); } };
+    const onErr = e => { clearTimeout(timer); note(e?.code === 'revoked' ? 'Доступ к спискам закрыт.' : 'Связь с хранилищем прервалась. Обновите страницу.', 'warn'); };
+    db.collection('lists').onSnapshot(snap => {
+      S.lists = new Map(snap.docs.map(d => [d.id, d.data()])); S.gotLists = true; settle(snap); render();
+    }, onErr);
+    db.collection('items').onSnapshot(snap => {
+      S.items = new Map(snap.docs.map(d => [d.id, d.data()])); S.gotItems = true; settle(snap); render();
+    }, onErr);
+  })();
+})();
+</script>
